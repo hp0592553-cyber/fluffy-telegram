@@ -1,4 +1,15 @@
-name: Build Android Debug APK
+mkdir -p android/app/src/main/res/values
+cat <<EOF > android/app/src/main/res/values/styles.xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+            <item name="colorPrimary">#FF6200EE</item>
+                    <item name="colorPrimaryDark">#FF3700B3</item>
+                            <item name="colorAccent">#FF03DAC5</item>
+                                </style>
+                                </resources>
+                                EOF
+                                name: Build Android Debug APK
 
 on:
   workflow_dispatch:
@@ -22,19 +33,25 @@ jobs:
           java-version: '17'
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
-      - name: Initialize Capacitor and Build App
+      - name: Prepare Dist Folder
         run: |
-          # O arquivo config.json jรก existe, o que facilita o Capacitor
-          npx cap add android
+          mkdir -p dist
+          cp index.html dist/ 2>/dev/null || true
+
+      - name: Sync Capacitor
+        run: |
+          npm install @capacitor/core@5 @capacitor/cli@5 @capacitor/android@5 --legacy-peer-deps
+          # O 'cap add' não é mais necessário se a pasta já existe, 
+          # mas o sync é essencial para levar o HTML para dentro do Android.
           npx cap sync android
 
-      - name: Set Permissions for Gradle Wrapper
-        run: chmod +x android/gradlew
-
       - name: Build Android Debug APK
-        run: ./gradlew assembleDebug
+        run: |
+          # Se o seu comando anterior não criou o gradlew, o Capacitor Sync cria.
+          chmod +x android/gradlew
+          ./gradlew assembleDebug
         working-directory: ./android
 
       - name: Upload Debug APK
