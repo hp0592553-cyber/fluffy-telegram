@@ -1,0 +1,6 @@
+{
+  "appId": "com.seunome.appfinalcerto",
+  "appName": "App Final Certo",
+  "webDir": ".",
+  "bundledWebRuntime": false
+}
