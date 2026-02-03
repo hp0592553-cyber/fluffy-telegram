@@ -1,61 +1,446 @@
-mkdir -p android/app/src/main/res/values
-cat <<EOF > android/app/src/main/res/values/styles.xml
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-            <item name="colorPrimary">#FF6200EE</item>
-                    <item name="colorPrimaryDark">#FF3700B3</item>
-                            <item name="colorAccent">#FF03DAC5</item>
-                                </style>
-                                </resources>
-                                EOF
-                                name: Build Android Debug APK
+<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MONSTRO V18 - TURBO EXPORT</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Inter:wght@400;600;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@4.0.1/build/mp4-muxer.js"></script>
+  <!-- Capacitor Bridge -->
+  <script src="https://unpkg.com/@capacitor/core@5/dist/index.js"></script>
+  <style>
+    :root { --accent: #a855f7; --pink: #db2777; --bg: #020306; }
+    body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: #f1f5f9; overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
+    .font-brand { font-family: 'Syncopate', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    
+    .glass-panel { background: rgba(10, 12, 18, 0.9); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 1rem; }
+    .btn-aggressive { background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%); transition: 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 30px rgba(124, 58, 237, 0.3); }
+    .btn-aggressive:active { transform: scale(0.96); filter: brightness(1.2); }
 
-on:
-  workflow_dispatch:
+    .vfx-node { background: #0a0c12; border: 1px solid #1e293b; color: #475569; font-weight: 900; text-transform: uppercase; font-size: 8px; letter-spacing: 0.1em; transition: 0.2s; position: relative; overflow: hidden; }
+    .vfx-node.active { background: var(--accent); color: white; border-color: #d8b4fe; box-shadow: 0 0 20px rgba(168, 85, 247, 0.4); transform: translateY(-1px); }
+    
+    .preset-node { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); transition: 0.2s; }
+    .preset-node.active { border-color: var(--pink); color: var(--pink); background: rgba(219, 39, 119, 0.05); }
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    canvas { border-radius: 0.5rem; background: #000; width: 100%; height: auto; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
+    
+    .tab-btn { position: relative; transition: 0.3s; }
+    .tab-btn.active { color: white; }
+    .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 25%; width: 50%; height: 3px; background: var(--accent); border-radius: 10px 10px 0 0; }
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
+    .recording-dot { width: 10px; height: 10px; background: #ef4444; border-radius: 50%; animation: blink 0.6s infinite; }
+    @keyframes blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+    
+    /* Custom Scrollbar */
+    .custom-scroll::-webkit-scrollbar { width: 4px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4">
 
-      - name: Set up Java 17 
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+  <div id="toast-container" class="fixed top-6 right-6 z-[9999] pointer-events-none"></div>
 
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
+  <header class="w-full max-w-5xl flex justify-between items-center mb-8 px-2 border-b border-white/5 pb-4">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-2xl overflow-hidden rotate-3">
+        <div class="w-full h-full bg-gradient-to-tr from-violet-600 to-pink-600 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+        </div>
+      </div>
+      <div>
+        <h1 class="text-xl font-brand font-bold text-white tracking-tighter">MONSTRO <span class="text-pink-600">V18</span></h1>
+        <div class="flex items-center gap-2">
+            <span class="text-[7px] font-mono text-emerald-500 uppercase font-black px-1.5 py-0.5 bg-emerald-500/10 rounded">TURBO DECODE</span>
+            <span class="text-[7px] font-mono text-slate-500 uppercase tracking-widest">ANDROID OPTIMIZED</span>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col items-end gap-1">
+        <div id="status-chip" class="flex items-center gap-2 px-3 py-1 bg-slate-900 rounded-full border border-white/5">
+            <div id="status-indicator" class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
+            <span id="txt-status" class="text-[8px] font-mono font-bold uppercase text-slate-400">Idle</span>
+        </div>
+        <span id="txt-fps" class="text-[8px] font-mono text-slate-600">60 / 60 FPS</span>
+    </div>
+  </header>
 
-      - name: Prepare Dist Folder
-        run: |
-          mkdir -p dist
-          cp index.html dist/ 2>/dev/null || true
+  <main class="w-full max-w-5xl flex flex-col gap-6">
 
-      - name: Sync Capacitor
-        run: |
-          npm install @capacitor/core@5 @capacitor/cli@5 @capacitor/android@5 --legacy-peer-deps
-          # O 'cap add' não é mais necessário se a pasta já existe, 
-          # mas o sync é essencial para levar o HTML para dentro do Android.
-          npx cap sync android
+    <section id="input-section" class="glass-panel p-16 text-center border-2 border-dashed border-slate-800 hover:border-violet-500/40 transition-all cursor-pointer group" onclick="window.importarVideoNativo()">
+      <p class="text-white font-black uppercase tracking-[0.3em] text-[10px] mb-2">Importar Clipe Master</p>
+      <p class="text-slate-500 font-bold uppercase text-[8px]">Clique para abrir a galeria nativa</p>
+    </section>
 
-      - name: Build Android Debug APK
-        run: |
-          # Se o seu comando anterior não criou o gradlew, o Capacitor Sync cria.
-          chmod +x android/gradlew
-          ./gradlew assembleDebug
-        working-directory: ./android
+    <section id="editor-ui" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 pb-12">
+      <div class="lg:col-span-8 space-y-4">
+        <div class="relative glass-panel p-1.5 shadow-2xl group">
+          <canvas id="view-canvas"></canvas>
+          <div id="rec-ui" class="hidden absolute top-6 left-6 flex items-center gap-3 bg-black/80 border border-red-500/50 p-2.5 rounded-xl backdrop-blur-md">
+            <div class="recording-dot"></div>
+            <div class="flex flex-col">
+                <span class="text-[9px] font-black text-white uppercase tracking-widest leading-none">Exportação Turbo</span>
+                <span id="export-progress" class="text-[7px] font-mono text-red-500 mt-1">Gravando Stream...</span>
+            </div>
+          </div>
+        </div>
 
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+        <div class="glass-panel p-6 flex items-center gap-6">
+          <button id="btn-play" class="w-14 h-14 bg-white text-black rounded-2xl flex items-center justify-center shrink-0 shadow-2xl hover:scale-105 active:scale-90 transition-all">
+            <svg id="svg-play" class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="svg-pause" class="w-7 h-7 hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          </button>
+          <div class="flex-grow flex flex-col gap-3">
+            <input type="range" id="seeker" class="w-full" value="0" step="0.001">
+            <div class="flex justify-between font-mono font-bold text-[9px] text-slate-500 uppercase tracking-widest">
+              <span id="time-curr" class="text-white">00:00:00</span>
+              <span id="time-dur">00:00:00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-4 flex flex-col gap-4">
+        <div class="glass-panel flex flex-col h-full max-h-[650px] overflow-hidden border border-white/5">
+          <div class="flex bg-black/40 border-b border-white/5">
+            <button class="tab-btn active flex-1 py-5 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500" data-pane="pane-caos">Chaos FX</button>
+            <button class="tab-btn flex-1 py-5 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500" data-pane="pane-color">Presets</button>
+          </div>
+
+          <div id="pane-caos" class="tab-pane p-5 space-y-6 overflow-y-auto custom-scroll">
+            <div class="grid grid-cols-2 gap-2">
+                <button class="vfx-node p-4 rounded-xl" data-fx="motionblur">Motion Blur</button>
+                <button class="vfx-node p-4 rounded-xl" data-fx="smartzoom">Auto Retention</button>
+                <button class="vfx-node p-4 rounded-xl" data-fx="glitch">Digital Glitch</button>
+                <button class="vfx-node p-4 rounded-xl" data-fx="rgb">RGB Split</button>
+                <button class="vfx-node p-4 rounded-xl" data-fx="shake">Impact Shake</button>
+                <button class="vfx-node p-4 rounded-xl" data-fx="strobe">Psycho Strobe</button>
+                <button class="vfx-node p-4 rounded-xl" data-fx="hue">Hue Shift</button>
+                <button class="vfx-node p-4 rounded-xl" data-fx="vignette">Focus Edge</button>
+            </div>
+            
+            <div class="space-y-6 pt-6 border-t border-white/5">
+                <div class="space-y-3">
+                    <div class="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-500">
+                        <span>Master Zoom</span>
+                        <span id="val-zoom" class="text-violet-500">1.0x</span>
+                    </div>
+                    <input type="range" id="inp-zoom" class="w-full" min="100" max="300" value="100">
+                </div>
+                <button id="btn-export" class="w-full btn-aggressive py-5 rounded-2xl text-[11px] font-black text-white uppercase tracking-[0.2em] shadow-2xl">Render Master MP4</button>
+                <div id="btn-safe" class="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl border border-white/5 cursor-pointer">
+                    <div class="flex flex-col">
+                        <span class="text-[9px] font-black uppercase text-white">Safe Mode (A30s)</span>
+                        <span class="text-[7px] font-mono text-slate-500 uppercase mt-1">30fps + Bitrate Baixo</span>
+                    </div>
+                    <div id="safe-indicator" class="w-10 h-5 bg-slate-800 rounded-full relative transition-all">
+                        <div id="safe-knob" class="absolute top-1 left-1 w-3 h-3 bg-slate-600 rounded-full transition-all"></div>
+                    </div>
+                </div>
+            </div>
+          </div>
+          
+          <div id="pane-color" class="tab-pane hidden p-5 grid grid-cols-2 gap-2 overflow-y-auto">
+            <button class="preset-node active p-5 rounded-xl text-[9px] font-black uppercase" data-preset="none">Raw</button>
+            <button class="preset-node p-5 rounded-xl text-[9px] font-black uppercase" data-preset="trap">Trap Lord</button>
+            <button class="preset-node p-5 rounded-xl text-[9px] font-black uppercase" data-preset="dark">Dark Energy</button>
+            <button class="preset-node p-5 rounded-xl text-[9px] font-black uppercase" data-preset="cinema">Blockbuster</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <video id="v-hidden" class="hidden" crossorigin="anonymous" playsinline muted></video>
+
+  <script type="module">
+    /**
+     * MONSTRO V18 - TURBO ENGINE + CAPACITOR BRIDGE
+     */
+    
+    // Import Capacitor Plugins
+    const { Camera } = Capacitor.Plugins;
+
+    const state = {
+      loaded: false, vfx: new Set(['motionblur']), preset: 'none',
+      zoom: 1.0, autoZoom: 1.0, isSafe: true,
+      recording: false, frame: 0, lastTimestamp: 0,
+      targetFPS: 30, hue: 0, lastBlurFrame: null, forceRedraw: false
+    };
+
+    const dom = {
+      v: document.getElementById('v-hidden'),
+      c: document.getElementById('view-canvas'),
+      ctx: document.getElementById('view-canvas').getContext('2d', { alpha: false }),
+      playBtn: document.getElementById('btn-play'),
+      seeker: document.getElementById('seeker'),
+      exportBtn: document.getElementById('btn-export'),
+      recUI: document.getElementById('rec-ui'),
+      txtStatus: document.getElementById('txt-status'),
+      statusInd: document.getElementById('status-indicator'),
+      txtFPS: document.getElementById('txt-fps'),
+      timeCurr: document.getElementById('time-curr'),
+      timeDur: document.getElementById('time-dur'),
+      safeBtn: document.getElementById('btn-safe'),
+      inpZoom: document.getElementById('inp-zoom'),
+      valZoom: document.getElementById('val-zoom')
+    };
+
+    const offCanvas = document.createElement('canvas');
+    const offCtx = offCanvas.getContext('2d');
+
+    function notify(msg) {
+      const el = document.createElement('div');
+      el.className = 'bg-slate-900 border border-violet-500/50 text-white px-6 py-4 rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-2xl mb-4 animate-bounce-in';
+      el.textContent = msg;
+      document.getElementById('toast-container').appendChild(el);
+      setTimeout(() => el.remove(), 4000);
+    }
+
+    function formatTime(s) {
+      const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60); const sec = Math.floor(s%60);
+      return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+    }
+
+    // --- CAPACITOR NATIVE PICKER ---
+    window.importarVideoNativo = async () => {
+      try {
+        notify("Acedendo à Galeria...");
+        const video = await Camera.pickVideo({
+          source: 'PHOTOS'
+        });
+
+        if (video && video.path) {
+          // Converter path nativo para Web URL
+          const webUrl = Capacitor.convertFileSrc(video.path);
+          dom.v.src = webUrl;
+          dom.v.load();
+        }
+      } catch (err) {
+        console.error("Erro no picker:", err);
+        notify("Erro ao abrir galeria!");
+      }
+    };
+
+    dom.v.onloadedmetadata = () => {
+      const baseW = state.isSafe ? 854 : 1280; 
+      const aspect = dom.v.videoWidth / dom.v.videoHeight;
+      dom.c.width = baseW; dom.c.height = baseW / aspect;
+      offCanvas.width = dom.c.width; offCanvas.height = dom.c.height;
+      dom.seeker.max = dom.v.duration;
+      dom.timeDur.textContent = formatTime(dom.v.duration);
+      document.getElementById('editor-ui').classList.remove('hidden');
+      document.getElementById('input-section').classList.add('hidden');
+      state.loaded = true;
+      requestAnimationFrame(loop);
+      notify("Pipeline Turbo v18 Online");
+    };
+
+    function loop(timestamp) {
+      if(!state.loaded || state.recording) return;
+      const elapsed = timestamp - state.lastTimestamp;
+      const frameLimit = 1000 / state.targetFPS;
+
+      if(elapsed >= frameLimit) {
+        state.lastTimestamp = timestamp;
+        if(!dom.v.paused || state.forceRedraw) {
+            state.frame++;
+            state.forceRedraw = false;
+            renderPipeline();
+            dom.seeker.value = dom.v.currentTime;
+            dom.timeCurr.textContent = formatTime(dom.v.currentTime);
+        }
+      }
+      requestAnimationFrame(loop);
+    }
+
+    function renderPipeline() {
+      const { ctx, c, v } = dom;
+      const w = c.width, h = c.height;
+
+      if(state.vfx.has('motionblur') && !v.paused) {
+          ctx.globalAlpha = 0.25;
+          if(state.lastBlurFrame) ctx.drawImage(state.lastBlurFrame, 0, 0);
+          ctx.globalAlpha = 1.0;
+      } else {
+          ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
+      }
+
+      ctx.save();
+      if(state.vfx.has('smartzoom') && !v.paused) {
+          state.autoZoom += 0.0003;
+          if(state.autoZoom > 1.15) state.autoZoom = 1.0;
+      }
+      applyColorPreset(ctx);
+
+      let shakeX = 0, shakeY = 0;
+      if(state.vfx.has('shake') && !v.paused) {
+          shakeX = (Math.random()-0.5) * 20; shakeY = (Math.random()-0.5) * 20;
+      }
+
+      const finalZoom = state.zoom * state.autoZoom;
+      ctx.translate(w/2 + shakeX, h/2 + shakeY);
+      ctx.scale(finalZoom, finalZoom);
+      ctx.translate(-w/2, -h/2);
+      ctx.drawImage(v, 0, 0, w, h);
+
+      if(state.vfx.has('glitch') && !v.paused && Math.random() > 0.9) {
+          offCtx.drawImage(v, 0, 0, w, h);
+          for(let i=0; i<3; i++) {
+              const sliceY = Math.random()*h, sliceH = 10 + Math.random()*50;
+              ctx.drawImage(offCanvas, 0, sliceY, w, sliceH, (Math.random()-0.5)*80, sliceY, w, sliceH);
+          }
+      }
+
+      if(state.vfx.has('rgb') && !v.paused) {
+          ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = 0.6;
+          ctx.drawImage(v, 12, 0, w, h); ctx.drawImage(v, -12, 0, w, h);
+          ctx.globalAlpha = 1.0; ctx.globalCompositeOperation = 'source-over';
+      }
+      if(state.vfx.has('hue')) state.hue = (state.hue + 1) % 360;
+      ctx.restore();
+
+      if(!v.paused && state.vfx.has('motionblur') && state.frame % 2 === 0) {
+          if(!state.lastBlurFrame) {
+              state.lastBlurFrame = document.createElement('canvas');
+              state.lastBlurFrame.width = w; state.lastBlurFrame.height = h;
+          }
+          state.lastBlurFrame.getContext('2d').drawImage(c, 0, 0);
+      }
+    }
+
+    function applyColorPreset(ctx) {
+        let f = "";
+        if(state.vfx.has('hue')) f += `hue-rotate(${state.hue}deg) `;
+        switch(state.preset) {
+            case 'trap': f += "saturate(220%) contrast(120%)"; break;
+            case 'dark': f += "contrast(180%) brightness(70%) grayscale(0.2)"; break;
+            case 'cinema': f += "saturate(110%) contrast(110%)"; break;
+            default: f += "none";
+        }
+        ctx.filter = f === "" ? "none" : f;
+    }
+
+    async function startTurboExport() {
+        if(state.recording || typeof Mp4Muxer === 'undefined') return;
+        
+        state.recording = true;
+        dom.recUI.classList.remove('hidden');
+        dom.v.pause(); dom.v.currentTime = 0;
+        notify("Iniciando Exportação...");
+
+        const bitrate = state.isSafe ? 2_500_000 : 5_000_000;
+        const fps = state.targetFPS;
+
+        let muxer = new Mp4Muxer.Muxer({
+            target: new Mp4Muxer.ArrayBufferTarget(),
+            video: { codec: 'avc', width: dom.c.width, height: dom.c.height },
+            fastStart: 'in-memory'
+        });
+
+        let videoEncoder = new VideoEncoder({
+            output: (chunk, metadata) => muxer.addVideoChunk(chunk, metadata),
+            error: (e) => { console.error(e); notify("Erro no Encoder!"); }
+        });
+
+        videoEncoder.configure({
+            codec: 'avc1.42E01E', 
+            width: dom.c.width, height: dom.c.height,
+            bitrate: bitrate, framerate: fps
+        });
+
+        let frameCount = 0;
+        const totalDuration = dom.v.duration;
+
+        const processFrame = async (now, metadata) => {
+            if (!state.recording) return;
+
+            renderPipeline();
+            const frame = new VideoFrame(dom.c, { timestamp: metadata.mediaTime * 1_000_000 });
+            videoEncoder.encode(frame, { keyFrame: frameCount % 60 === 0 });
+            frame.close();
+            
+            frameCount++;
+            const progress = Math.min(100, Math.round((dom.v.currentTime / totalDuration) * 100));
+            document.getElementById('export-progress').textContent = `Turbo: ${progress}% | Renderizando...`;
+
+            if (dom.v.ended || dom.v.currentTime >= totalDuration - 0.05) {
+                finishExport();
+            } else {
+                dom.v.requestVideoFrameCallback(processFrame);
+            }
+        };
+
+        const finishExport = async () => {
+            await videoEncoder.flush();
+            muxer.finalize();
+            const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url;
+            a.download = `MONSTRO_V18_EXPORT_${Date.now()}.mp4`; a.click();
+            
+            state.recording = false; dom.recUI.classList.add('hidden');
+            dom.v.pause(); dom.v.currentTime = 0;
+            notify("Vídeo Salvo na Pasta de Downloads");
+            requestAnimationFrame(loop);
+        };
+
+        dom.v.requestVideoFrameCallback(processFrame);
+        dom.v.playbackRate = state.isSafe ? 0.3 : 1.0; 
+        dom.v.play();
+    }
+
+    dom.exportBtn.onclick = startTurboExport;
+    dom.safeBtn.onclick = () => {
+        state.isSafe = !state.isSafe;
+        document.getElementById('safe-knob').style.left = state.isSafe ? '22px' : '4px';
+        document.getElementById('safe-indicator').style.backgroundColor = state.isSafe ? '#7c3aed' : '#1e293b';
+        state.targetFPS = state.isSafe ? 30 : 60;
+        dom.v.onloadedmetadata();
+    };
+
+    dom.playBtn.onclick = () => {
+        if(dom.v.paused) { dom.v.play(); togglePlayIcon(true); }
+        else { dom.v.pause(); togglePlayIcon(false); }
+    };
+    function togglePlayIcon(playing) {
+        document.getElementById('svg-play').classList.toggle('hidden', playing);
+        document.getElementById('svg-pause').classList.toggle('hidden', !playing);
+    }
+    dom.seeker.oninput = () => { dom.v.currentTime = dom.seeker.value; state.forceRedraw = true; };
+    dom.inpZoom.oninput = () => {
+        state.zoom = dom.inpZoom.value / 100;
+        dom.valZoom.textContent = state.zoom.toFixed(1) + 'x';
+        state.forceRedraw = true;
+    };
+
+    document.querySelectorAll('.vfx-node').forEach(b => {
+        b.onclick = () => {
+            const fx = b.dataset.fx;
+            if(state.vfx.has(fx)) { state.vfx.delete(fx); b.classList.remove('active'); }
+            else { state.vfx.add(fx); b.classList.add('active'); }
+            state.forceRedraw = true;
+        };
+        if(state.vfx.has(b.dataset.fx)) b.classList.add('active');
+    });
+    document.querySelectorAll('.preset-node').forEach(b => {
+        b.onclick = () => {
+            document.querySelectorAll('.preset-node').forEach(n => n.classList.remove('active'));
+            state.preset = b.dataset.preset; b.classList.add('active');
+            state.forceRedraw = true;
+        };
+    });
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.onclick = () => {
+        document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(x => x.classList.add('hidden'));
+        b.classList.add('active'); document.getElementById(b.dataset.pane).classList.remove('hidden');
+      };
+    });
+  </script>
+</body>
+</html>
+
