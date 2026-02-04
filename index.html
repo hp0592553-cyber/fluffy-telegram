@@ -7,8 +7,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Inter:wght@400;600;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@4.0.1/build/mp4-muxer.js"></script>
-  <!-- Capacitor Bridge -->
-  <script src="https://unpkg.com/@capacitor/core@5/dist/index.js"></script>
   <style>
     :root { --accent: #a855f7; --pink: #db2777; --bg: #020306; }
     body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: #f1f5f9; overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
@@ -25,7 +23,7 @@
     .preset-node { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); transition: 0.2s; }
     .preset-node.active { border-color: var(--pink); color: var(--pink); background: rgba(219, 39, 119, 0.05); }
 
-    canvas { border-radius: 0.5rem; background: #000; width: 100%; height: auto; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
+    canvas, #video-result { border-radius: 0.5rem; background: #000; width: 100%; height: auto; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
     
     .tab-btn { position: relative; transition: 0.3s; }
     .tab-btn.active { color: white; }
@@ -33,21 +31,34 @@
 
     .recording-dot { width: 10px; height: 10px; background: #ef4444; border-radius: 50%; animation: blink 0.6s infinite; }
     @keyframes blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
-    
-    .custom-scroll::-webkit-scrollbar { width: 4px; }
-    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-    .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
 
-    /* Input Invisível */
-    #hidden-input { display: none; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
 
   <div id="toast-container" class="fixed top-6 right-6 z-[9999] pointer-events-none"></div>
 
-  <!-- Input de arquivo como fallback real -->
-  <input type="file" id="hidden-input" accept="video/*">
+  <!-- MODAL DE EXPORTAÇÃO FINAL -->
+  <div id="modal-result" class="modal-overlay">
+    <div class="glass-panel w-full max-w-2xl p-6 flex flex-col gap-6 border-violet-500/30 border-2 text-center">
+        <div class="flex justify-between items-center">
+            <h2 class="font-brand text-[10px] font-bold text-white uppercase tracking-widest italic">VÍDEO_CONCLUÍDO</h2>
+            <button onclick="document.getElementById('modal-result').style.display='none'" class="text-slate-500 hover:text-white font-bold p-2">X FECHAR</button>
+        </div>
+        
+        <video id="video-result" controls playsinline class="w-full rounded-xl shadow-2xl"></video>
+        
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-2">
+                <button id="btn-copy-link" class="bg-slate-800 hover:bg-slate-700 py-4 rounded-xl text-[10px] font-black uppercase text-white">Copiar Link</button>
+                <button id="btn-open-browser" class="bg-violet-600 hover:bg-violet-500 py-4 rounded-xl text-[10px] font-black uppercase text-white">Abrir no Chrome</button>
+            </div>
+            <a id="link-download-direct" class="block w-full btn-aggressive py-5 rounded-2xl text-center text-[11px] font-black text-white uppercase tracking-[0.2em] shadow-lg">BAIXAR VÍDEO AGORA</a>
+            <p class="text-[9px] text-slate-500 font-mono uppercase font-bold">⚠️ HENRIQUE: SE O BOTÃO FALHAR, SEGURE O DEDO NO VÍDEO E SALVE NA GALERIA.</p>
+        </div>
+    </div>
+  </div>
 
   <header class="w-full max-w-5xl flex justify-between items-center mb-8 px-2 border-b border-white/5 pb-4">
     <div class="flex items-center gap-4">
@@ -60,14 +71,14 @@
         <h1 class="text-xl font-brand font-bold text-white tracking-tighter">MONSTRO <span class="text-pink-600">V18</span></h1>
         <div class="flex items-center gap-2">
             <span class="text-[7px] font-mono text-emerald-500 uppercase font-black px-1.5 py-0.5 bg-emerald-500/10 rounded">TURBO DECODE</span>
-            <span class="text-[7px] font-mono text-slate-500 uppercase tracking-widest">ANDROID 11+ READY</span>
+            <span class="text-[7px] font-mono text-slate-500 uppercase tracking-widest">A30s OPTIMIZED</span>
         </div>
       </div>
     </div>
     <div class="flex flex-col items-end gap-1">
         <div id="status-chip" class="flex items-center gap-2 px-3 py-1 bg-slate-900 rounded-full border border-white/5">
             <div id="status-indicator" class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
-            <span id="txt-status" class="text-[8px] font-mono font-bold uppercase text-slate-400">Pronto</span>
+            <span id="txt-status" class="text-[8px] font-mono font-bold uppercase text-slate-400">Idle</span>
         </div>
         <span id="txt-fps" class="text-[8px] font-mono text-slate-600">60 / 60 FPS</span>
     </div>
@@ -75,9 +86,10 @@
 
   <main class="w-full max-w-5xl flex flex-col gap-6">
 
-    <section id="input-section" class="glass-panel p-16 text-center border-2 border-dashed border-slate-800 hover:border-violet-500/40 transition-all cursor-pointer group" onclick="window.handleImportClick()">
+    <section id="input-section" class="glass-panel p-16 text-center border-2 border-dashed border-slate-800 hover:border-violet-500/40 transition-all cursor-pointer group" onclick="document.getElementById('video-file').click()">
+      <input type="file" id="video-file" class="hidden" accept="video/*">
       <p class="text-white font-black uppercase tracking-[0.3em] text-[10px] mb-2">Importar Clipe Master</p>
-      <p class="text-slate-500 font-bold uppercase text-[8px]">Clique para abrir a galeria nativa</p>
+      <p class="text-slate-500 font-bold uppercase text-[8px]">Inicie o pipeline turbo v18</p>
     </section>
 
     <section id="editor-ui" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 pb-12">
@@ -161,14 +173,10 @@
 
   <video id="v-hidden" class="hidden" crossorigin="anonymous" playsinline muted></video>
 
-  <script type="module">
+  <script>
     /**
-     * MONSTRO V18 - TURBO ENGINE + ANDROID 11 COMPATIBILITY FIX
+     * MONSTRO V18 - TURBO ENGINE - HENRIQUE EDITION
      */
-    
-    // Import Capacitor Plugins se disponíveis
-    const { Camera } = typeof Capacitor !== 'undefined' ? Capacitor.Plugins : { Camera: null };
-
     const state = {
       loaded: false, vfx: new Set(['motionblur']), preset: 'none',
       zoom: 1.0, autoZoom: 1.0, isSafe: true,
@@ -180,6 +188,7 @@
       v: document.getElementById('v-hidden'),
       c: document.getElementById('view-canvas'),
       ctx: document.getElementById('view-canvas').getContext('2d', { alpha: false }),
+      file: document.getElementById('video-file'),
       playBtn: document.getElementById('btn-play'),
       seeker: document.getElementById('seeker'),
       exportBtn: document.getElementById('btn-export'),
@@ -190,13 +199,16 @@
       timeCurr: document.getElementById('time-curr'),
       timeDur: document.getElementById('time-dur'),
       safeBtn: document.getElementById('btn-safe'),
-      inpZoom: document.getElementById('inp-zoom'),
-      valZoom: document.getElementById('val-zoom'),
-      fileInput: document.getElementById('hidden-input')
+      modal: document.getElementById('modal-result'),
+      videoRes: document.getElementById('video-result'),
+      linkDownload: document.getElementById('link-download-direct'),
+      btnCopy: document.getElementById('btn-copy-link'),
+      btnOpen: document.getElementById('btn-open-browser')
     };
 
     const offCanvas = document.createElement('canvas');
     const offCtx = offCanvas.getContext('2d');
+    let currentBlobUrl = null;
 
     function notify(msg) {
       const el = document.createElement('div');
@@ -211,46 +223,12 @@
       return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
     }
 
-    // --- SISTEMA DE IMPORTAÇÃO HÍBRIDO (FIX ANDROID 11+) ---
-    window.handleImportClick = async () => {
-      // Se estiver no Capacitor, tentamos permissões primeiro
-      if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
-        try {
-          notify("Acedendo à Galeria...");
-          
-          // No Android 11+, as permissões de vídeo são chaves
-          if (Camera) {
-            const video = await Camera.pickVideo({ source: 'PHOTOS' });
-            if (video && video.path) {
-              const webUrl = Capacitor.convertFileSrc(video.path);
-              loadVideoSource(webUrl);
-              return;
-            }
-          }
-        } catch (err) {
-          console.warn("Capacitor Picker falhou, usando Fallback Nativo...", err);
-        }
-      }
-      
-      // FALLBACK: Se o Capacitor falhar ou não existir, usamos o input invisível
-      // Este método é INFALÍVEL no Android 11/12/13/14 porque não exige permissão de storage total
-      dom.fileInput.click();
-    };
-
-    // Listener para o input de arquivo (Fallback)
-    dom.fileInput.onchange = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const url = URL.createObjectURL(file);
-        loadVideoSource(url);
-      }
-    };
-
-    function loadVideoSource(url) {
-      dom.v.src = url;
+    dom.file.onchange = (e) => {
+      const f = e.target.files[0];
+      if(!f) return;
+      dom.v.src = URL.createObjectURL(f);
       dom.v.load();
-      notify("Vídeo Carregado com Sucesso");
-    }
+    };
 
     dom.v.onloadedmetadata = () => {
       const baseW = state.isSafe ? 854 : 1280; 
@@ -356,7 +334,7 @@
         state.recording = true;
         dom.recUI.classList.remove('hidden');
         dom.v.pause(); dom.v.currentTime = 0;
-        notify("Iniciando Exportação...");
+        notify("Renderizando Master Henrique...");
 
         const bitrate = state.isSafe ? 2_500_000 : 5_000_000;
         const fps = state.targetFPS;
@@ -369,7 +347,7 @@
 
         let videoEncoder = new VideoEncoder({
             output: (chunk, metadata) => muxer.addVideoChunk(chunk, metadata),
-            error: (e) => { console.error(e); notify("Erro no Encoder!"); }
+            error: (e) => console.error(e)
         });
 
         videoEncoder.configure({
@@ -383,17 +361,16 @@
 
         const processFrame = async (now, metadata) => {
             if (!state.recording) return;
-
             renderPipeline();
             const frame = new VideoFrame(dom.c, { timestamp: metadata.mediaTime * 1_000_000 });
-            videoEncoder.encode(frame, { keyFrame: frameCount % 60 === 0 });
+            videoEncoder.encode(frame, { keyFrame: frameCount % 120 === 0 });
             frame.close();
             
             frameCount++;
             const progress = Math.min(100, Math.round((dom.v.currentTime / totalDuration) * 100));
-            document.getElementById('export-progress').textContent = `Turbo: ${progress}% | Renderizando...`;
+            document.getElementById('export-progress').textContent = `Turbo: ${progress}%`;
 
-            if (dom.v.ended || dom.v.currentTime >= totalDuration - 0.05) {
+            if (dom.v.ended || dom.v.currentTime >= totalDuration - 0.1) {
                 finishExport();
             } else {
                 dom.v.requestVideoFrameCallback(processFrame);
@@ -404,20 +381,41 @@
             await videoEncoder.flush();
             muxer.finalize();
             const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url;
-            a.download = `MONSTRO_V18_EXPORT_${Date.now()}.mp4`; a.click();
+            currentBlobUrl = URL.createObjectURL(blob);
+            
+            // MOSTRAR PAINEL DE RESULTADO
+            dom.videoRes.src = currentBlobUrl;
+            dom.linkDownload.href = currentBlobUrl;
+            dom.linkDownload.setAttribute('download', `MONSTRO_V18_EDIT_${Date.now()}.mp4`);
+            dom.modal.style.display = 'flex';
             
             state.recording = false; dom.recUI.classList.add('hidden');
             dom.v.pause(); dom.v.currentTime = 0;
-            notify("Vídeo Salvo na Pasta de Downloads");
+            notify("Renderização Concluída!");
             requestAnimationFrame(loop);
         };
 
         dom.v.requestVideoFrameCallback(processFrame);
-        dom.v.playbackRate = state.isSafe ? 0.3 : 1.0; 
+        dom.v.playbackRate = 0.5; // Motor Original Sincronizado
         dom.v.play();
     }
+
+    // FUNÇÕES DE EXPORTAÇÃO HENRIQUE
+    dom.btnCopy.onclick = () => {
+        if(!currentBlobUrl) return;
+        const dummy = document.createElement('input');
+        document.body.appendChild(dummy);
+        dummy.value = currentBlobUrl;
+        dummy.select();
+        document.execCommand('copy');
+        document.body.removeChild(dummy);
+        notify("Link do Vídeo Copiado!");
+    };
+
+    dom.btnOpen.onclick = () => {
+        if(!currentBlobUrl) return;
+        window.open(currentBlobUrl, '_blank');
+    };
 
     dom.exportBtn.onclick = startTurboExport;
     dom.safeBtn.onclick = () => {
@@ -425,7 +423,7 @@
         document.getElementById('safe-knob').style.left = state.isSafe ? '22px' : '4px';
         document.getElementById('safe-indicator').style.backgroundColor = state.isSafe ? '#7c3aed' : '#1e293b';
         state.targetFPS = state.isSafe ? 30 : 60;
-        if(state.loaded) dom.v.onloadedmetadata();
+        dom.v.onloadedmetadata();
     };
 
     dom.playBtn.onclick = () => {
@@ -437,9 +435,9 @@
         document.getElementById('svg-pause').classList.toggle('hidden', !playing);
     }
     dom.seeker.oninput = () => { dom.v.currentTime = dom.seeker.value; state.forceRedraw = true; };
-    dom.inpZoom.oninput = () => {
-        state.zoom = dom.inpZoom.value / 100;
-        dom.valZoom.textContent = state.zoom.toFixed(1) + 'x';
+    document.getElementById('inp-zoom').oninput = (e) => {
+        state.zoom = e.target.value / 100;
+        document.getElementById('val-zoom').textContent = state.zoom.toFixed(1) + 'x';
         state.forceRedraw = true;
     };
 
