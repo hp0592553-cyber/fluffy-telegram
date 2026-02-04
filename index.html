@@ -34,15 +34,20 @@
     .recording-dot { width: 10px; height: 10px; background: #ef4444; border-radius: 50%; animation: blink 0.6s infinite; }
     @keyframes blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
     
-    /* Custom Scrollbar */
     .custom-scroll::-webkit-scrollbar { width: 4px; }
     .custom-scroll::-webkit-scrollbar-track { background: transparent; }
     .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+
+    /* Input Invisível */
+    #hidden-input { display: none; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
 
   <div id="toast-container" class="fixed top-6 right-6 z-[9999] pointer-events-none"></div>
+
+  <!-- Input de arquivo como fallback real -->
+  <input type="file" id="hidden-input" accept="video/*">
 
   <header class="w-full max-w-5xl flex justify-between items-center mb-8 px-2 border-b border-white/5 pb-4">
     <div class="flex items-center gap-4">
@@ -55,14 +60,14 @@
         <h1 class="text-xl font-brand font-bold text-white tracking-tighter">MONSTRO <span class="text-pink-600">V18</span></h1>
         <div class="flex items-center gap-2">
             <span class="text-[7px] font-mono text-emerald-500 uppercase font-black px-1.5 py-0.5 bg-emerald-500/10 rounded">TURBO DECODE</span>
-            <span class="text-[7px] font-mono text-slate-500 uppercase tracking-widest">ANDROID OPTIMIZED</span>
+            <span class="text-[7px] font-mono text-slate-500 uppercase tracking-widest">ANDROID 11+ READY</span>
         </div>
       </div>
     </div>
     <div class="flex flex-col items-end gap-1">
         <div id="status-chip" class="flex items-center gap-2 px-3 py-1 bg-slate-900 rounded-full border border-white/5">
             <div id="status-indicator" class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
-            <span id="txt-status" class="text-[8px] font-mono font-bold uppercase text-slate-400">Idle</span>
+            <span id="txt-status" class="text-[8px] font-mono font-bold uppercase text-slate-400">Pronto</span>
         </div>
         <span id="txt-fps" class="text-[8px] font-mono text-slate-600">60 / 60 FPS</span>
     </div>
@@ -70,7 +75,7 @@
 
   <main class="w-full max-w-5xl flex flex-col gap-6">
 
-    <section id="input-section" class="glass-panel p-16 text-center border-2 border-dashed border-slate-800 hover:border-violet-500/40 transition-all cursor-pointer group" onclick="window.importarVideoNativo()">
+    <section id="input-section" class="glass-panel p-16 text-center border-2 border-dashed border-slate-800 hover:border-violet-500/40 transition-all cursor-pointer group" onclick="window.handleImportClick()">
       <p class="text-white font-black uppercase tracking-[0.3em] text-[10px] mb-2">Importar Clipe Master</p>
       <p class="text-slate-500 font-bold uppercase text-[8px]">Clique para abrir a galeria nativa</p>
     </section>
@@ -158,11 +163,11 @@
 
   <script type="module">
     /**
-     * MONSTRO V18 - TURBO ENGINE + CAPACITOR BRIDGE
+     * MONSTRO V18 - TURBO ENGINE + ANDROID 11 COMPATIBILITY FIX
      */
     
-    // Import Capacitor Plugins
-    const { Camera } = Capacitor.Plugins;
+    // Import Capacitor Plugins se disponíveis
+    const { Camera } = typeof Capacitor !== 'undefined' ? Capacitor.Plugins : { Camera: null };
 
     const state = {
       loaded: false, vfx: new Set(['motionblur']), preset: 'none',
@@ -186,7 +191,8 @@
       timeDur: document.getElementById('time-dur'),
       safeBtn: document.getElementById('btn-safe'),
       inpZoom: document.getElementById('inp-zoom'),
-      valZoom: document.getElementById('val-zoom')
+      valZoom: document.getElementById('val-zoom'),
+      fileInput: document.getElementById('hidden-input')
     };
 
     const offCanvas = document.createElement('canvas');
@@ -205,25 +211,46 @@
       return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
     }
 
-    // --- CAPACITOR NATIVE PICKER ---
-    window.importarVideoNativo = async () => {
-      try {
-        notify("Acedendo à Galeria...");
-        const video = await Camera.pickVideo({
-          source: 'PHOTOS'
-        });
-
-        if (video && video.path) {
-          // Converter path nativo para Web URL
-          const webUrl = Capacitor.convertFileSrc(video.path);
-          dom.v.src = webUrl;
-          dom.v.load();
+    // --- SISTEMA DE IMPORTAÇÃO HÍBRIDO (FIX ANDROID 11+) ---
+    window.handleImportClick = async () => {
+      // Se estiver no Capacitor, tentamos permissões primeiro
+      if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
+        try {
+          notify("Acedendo à Galeria...");
+          
+          // No Android 11+, as permissões de vídeo são chaves
+          if (Camera) {
+            const video = await Camera.pickVideo({ source: 'PHOTOS' });
+            if (video && video.path) {
+              const webUrl = Capacitor.convertFileSrc(video.path);
+              loadVideoSource(webUrl);
+              return;
+            }
+          }
+        } catch (err) {
+          console.warn("Capacitor Picker falhou, usando Fallback Nativo...", err);
         }
-      } catch (err) {
-        console.error("Erro no picker:", err);
-        notify("Erro ao abrir galeria!");
+      }
+      
+      // FALLBACK: Se o Capacitor falhar ou não existir, usamos o input invisível
+      // Este método é INFALÍVEL no Android 11/12/13/14 porque não exige permissão de storage total
+      dom.fileInput.click();
+    };
+
+    // Listener para o input de arquivo (Fallback)
+    dom.fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const url = URL.createObjectURL(file);
+        loadVideoSource(url);
       }
     };
+
+    function loadVideoSource(url) {
+      dom.v.src = url;
+      dom.v.load();
+      notify("Vídeo Carregado com Sucesso");
+    }
 
     dom.v.onloadedmetadata = () => {
       const baseW = state.isSafe ? 854 : 1280; 
@@ -236,7 +263,6 @@
       document.getElementById('input-section').classList.add('hidden');
       state.loaded = true;
       requestAnimationFrame(loop);
-      notify("Pipeline Turbo v18 Online");
     };
 
     function loop(timestamp) {
@@ -399,7 +425,7 @@
         document.getElementById('safe-knob').style.left = state.isSafe ? '22px' : '4px';
         document.getElementById('safe-indicator').style.backgroundColor = state.isSafe ? '#7c3aed' : '#1e293b';
         state.targetFPS = state.isSafe ? 30 : 60;
-        dom.v.onloadedmetadata();
+        if(state.loaded) dom.v.onloadedmetadata();
     };
 
     dom.playBtn.onclick = () => {
