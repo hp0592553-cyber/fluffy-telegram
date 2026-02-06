@@ -1,59 +1,70 @@
-name: Build Android Debug APK
-
-on:
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout do Código
-        uses: actions/checkout@v4
-
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Configurar Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Instalar Dependências
-        run: |
-          npm install --legacy-peer-deps
-          npm install @capacitor/core@5 @capacitor/cli@5 @capacitor/android@5 @capacitor/filesystem@5 --legacy-peer-deps
-
-      - name: Build Web
-        run: |
-          mkdir -p dist
-          cp index.html dist/index.html || echo "<html><body>Editor Monstro</body></html>" > dist/index.html
-
-      - name: Criar Projeto Android Limpo
-        run: |
-          rm -rf android
-          npx cap add android
-          npx cap sync
-
-      # 🔥 AGORA vem o truque PROFISSIONAL:
-      # adiciona permissões SEM destruir o manifest
-
-      - name: Inject permissões corretamente
-        run: |
-          sed -i '/<manifest/a\
-              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>' android/app/src/main/AndroidManifest.xml
-
-      - name: Build APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Editor-Monstro-V18
+name: Build Android Debug APK  
+  
+on:  
+  workflow_dispatch:  
+  
+jobs:  
+  build:  
+    runs-on: ubuntu-latest  
+    steps:  
+      - name: Checkout do Código  
+        uses: actions/checkout@v4  
+  
+      - name: Configurar Node.js  
+        uses: actions/setup-node@v4  
+        with:  
+          node-version: '18'  
+  
+      - name: Configurar Java 17  
+        uses: actions/setup-java@v4  
+        with:  
+          distribution: 'temurin'  
+          java-version: '17'  
+  
+      - name: Instalar Dependências Core  
+        run: |  
+          npm install --legacy-peer-deps  
+          npm install @capacitor/core@5 @capacitor/cli@5 @capacitor/android@5 @capacitor/camera@5 @capacitor/filesystem@5 --legacy-peer-deps  
+  
+      - name: Construir Ambiente Web e Nativo  
+        run: |  
+          # 1. Cria a pasta dist e garante o index.html  
+          mkdir -p dist  
+          cp index.html dist/ 2>/dev/null || echo "<html><body>MONSTRO V18</body></html>" > dist/index.html  
+            
+          # 2. Remove qualquer pasta android corrompida e cria uma nova  
+          rm -rf android  
+          npx cap add android  
+            
+          # 3. Injectar as permissões de vídeo diretamente no Manifest gerado  
+          cat <<EOF > android/app/src/main/AndroidManifest.xml  
+          <?xml version="1.0" encoding="utf-8"?>  
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">  
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>  
+              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>  
+              <uses-permission android:name="android.permission.INTERNET"/>  
+              <application android:label="Editor Monstro" android:theme="@style/AppTheme" android:allowBackup="true" android:icon="@mipmap/ic_launcher">  
+                  <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode" android:theme="@style/AppTheme.NoActionBarLaunch">  
+                      <intent-filter>  
+                          <action android:name="android.intent.action.MAIN" />  
+                          <category android:name="android.intent.category.LAUNCHER" />  
+                      </intent-filter>  
+                  </activity>  
+              </application>  
+          </manifest>  
+          EOF  
+  
+      - name: Sincronizar Capacitor  
+        run: npx cap sync android  
+  
+      - name: Compilar APK (Modo Turbo)  
+        run: |  
+          cd android  
+          chmod +x gradlew  
+          ./gradlew assembleDebug  
+  
+      - name: Upload do APK Final  
+        uses: actions/upload-artifact@v4  
+        with:  
+          name: Editor-Monstro-V18  
           path: android/app/build/outputs/apk/debug/app-debug.apk
